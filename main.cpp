@@ -25,11 +25,12 @@
  * ============================================================================
  */
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+#include <iostream>
+
 #ifdef WIN32
 #include <windows.h>
-#else
- /* no screenshots on win32 boxes */
-#include "png.h"
 #endif
 
 #include <math.h>
@@ -87,12 +88,12 @@ void createTestCase(int);
 void saveState(void);
 void restoreState(void);
 
-#ifndef WIN32 /* screenshots only on linux */
-// void screenshot(const char*);
-// void updateSimulationAndScreenshot(void);
-// void startMovie(void);
-// void stopMovie(void);
-#endif
+
+ void screenshot(const char*);
+ void updateSimulationAndScreenshot(void);
+ void startMovie(void);
+ void stopMovie(void);
+
 
 /* GLOBALS and DEFINES */
 
@@ -995,45 +996,49 @@ void updateSimulation(void) {
 	redrawAllWindows();
 }
 
-#ifndef WIN32 /* screenshots only on linux */
-// void screenshot(const char* filename) {
-// 	/* this allocation does not work under vc++, as
-// 	   DIM is not a const */
-// 	unsigned char buf[DIM * DIM];
-// 	for (int i = 0; i < DIM; i++) {
-// 		for (int j = 0; j < DIM; j++) {
-// 			float val = rho[i*DIM + j] * 255.0f;
-// 			if (val > 255.0f) val = 255.0f;
-// 			buf[(DIM - i - 1)*DIM + j] = (unsigned char)val;
-// 		}
-// 	}
-// 	outputGreyscaleImageDataAsPPM(filename, &buf[0], DIM, DIM);
-// }
+void screenshot(const char* filename) {
 
-// void updateSimulationAndScreenshot(void) {
-// 	setForces();
-// 	stable_solve(DIM, u, v, u0, v0, g_visc, dt);
-// 	diffuse_matter(DIM, u, v, rho, rho0, dt);
+	unsigned char* buf = new unsigned char[DIM * DIM];
+	for (int i = 0; i < DIM; i++) {
+		for (int j = 0; j < DIM; j++) {
+			float val = rho[i*DIM + j] * 255.0f;
+			if (val > 255.0f) val = 255.0f;
+			buf[(DIM - i - 1)*DIM + j] = (unsigned char)val;
+		}
+	}
 
-// 	t += dt;
+	// char filename[200];
+	// snprintf(filename, sizeof(char) * 200, "Screenshot%05i.png", framecounter++);
+	// glReadPixels(0, 0, gridX, gridY, GL_RGB, GL_UNSIGNED_BYTE, glreadbuffer);
+	unsigned char* last_row = buf + (DIM * (DIM - 1));
+	if (!stbi_write_png(filename, DIM, DIM, 1, last_row, -DIM))
+		std::cerr << "ERROR: could not write image to " << filename << std::endl;
+	delete[] buf;
+}
 
-// 	char buf[50];
-// 	sprintf(buf, "smoke%d.ppm", framenum);
-// 	framenum++;
-// 	screenshot(buf);
+void updateSimulationAndScreenshot(void) {
+	setForces();
+	stable_solve(DIM, u, v, u0, v0, g_visc, dt);
+	diffuse_matter(DIM, u, v, rho, rho0, dt);
 
-// 	redrawAllWindows();
-// }
+	t += dt;
 
-// void startMovie(void) {
-// 	glutIdleFunc(updateSimulationAndScreenshot);
-// }
+	char buf[50];
+	sprintf(buf, "smoke%05d.png", framenum);
+	framenum++;
+	screenshot(buf);
 
-// void stopMovie(void) {
-// 	glutIdleFunc(updateSimulation);
-// 	framenum = 0;
-// }
-#endif
+	redrawAllWindows();
+}
+
+void startMovie(void) {
+	glutIdleFunc(updateSimulationAndScreenshot);
+}
+
+void stopMovie(void) {
+	glutIdleFunc(updateSimulation);
+	framenum = 0;
+}
 
 void displayFieldWin(void) {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -1209,22 +1214,19 @@ void keyboard(unsigned char key, int x, int y) {
 		printf("saved state restored\n");
 		restoreState();
 		break;
-#ifndef WIN32
-	// 	/* screenshot series functionality. pnglib only works correctly
-	// 	   on the linux platform*/
-	// case 'i':
-	// 	printf("screenshot taken\n");
-	// 	screenshot("smoke.pgm");
-	// 	break;
-	// case 'M':
-	// 	printf("movie started\n");
-	// 	startMovie();
-	// 	break;
-	// case 'm':
-	// 	printf("movie stopped\n");
-	// 	stopMovie();
-	// 	break;
-#endif
+	case 'i':
+		printf("screenshot taken\n");
+		screenshot("smoke.pgm");
+		break;
+	case 'M':
+		printf("movie started\n");
+		startMovie();
+		break;
+	case 'm':
+		printf("movie stopped\n");
+		stopMovie();
+		break;
+
 	}
 }
 
